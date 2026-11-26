@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds ByteBroom, bundles it as a macOS .app, and installs it to /Applications.
-# Usage: ./install.sh   (needs cargo-bundle: cargo install cargo-bundle)
+# Usage: ./install.sh   (needs cargo-bundle: cargo install cargo-bundle --locked)
 set -e
 cd "$(dirname "$0")"
 

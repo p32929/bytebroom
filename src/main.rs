@@ -1,6 +1,7 @@
 #[cfg(not(target_os = "macos"))]
 compile_error!("ByteBroom only supports macOS.");
 
+mod access;
 mod apps;
 mod rules;
 
@@ -175,6 +176,7 @@ struct App {
     progress: Arc<Mutex<Progress>>,
     status: Option<String>,
     delete_errors: Vec<String>,
+    needs_access: bool, // no Full Disk Access yet: explain it before the first scan
 }
 
 impl App {
@@ -206,9 +208,55 @@ impl App {
             progress: Arc::default(),
             status: None,
             delete_errors: Vec::new(),
+            needs_access: !access::has_full_disk_access(),
         };
-        app.start_scan(ctx);
+        // With the explanation showing, scanning waits: it is what makes macOS ask folder by folder.
+        if !app.needs_access {
+            app.start_scan(ctx);
+        }
         app
+    }
+
+    fn access_ui(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.add_space(ui.available_height() * 0.2);
+                ui.label(egui::RichText::new(icons::SHIELD_CHECK).size(48.0));
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new("Allow one permission, once").size(24.0).strong());
+                ui.add_space(8.0);
+                ui.allocate_ui(egui::vec2(480.0, 0.0), |ui| {
+                    ui.label("ByteBroom looks in places macOS protects, like caches, app data and your Documents, Desktop and Downloads folders.");
+                    ui.add_space(6.0);
+                    ui.label("Without Full Disk Access, macOS asks about each of those separately while it scans, and ByteBroom still finds less. Turn it on once and it stops asking.");
+                    ui.add_space(6.0);
+                    ui.weak("ByteBroom only reads sizes and names. Nothing leaves your Mac, and nothing is deleted until you choose it.");
+                });
+                ui.add_space(18.0);
+                let open = egui::Button::new(egui::RichText::new("Open Full Disk Access settings").strong());
+                if ui.add(open).clicked() {
+                    access::open_settings();
+                }
+                ui.add_space(4.0);
+                ui.weak("Switch on ByteBroom in the list (use + if it isn't there), then come back.");
+                ui.add_space(14.0);
+                ui.horizontal(|ui| {
+                    ui.add_space((ui.available_width() - 330.0).max(0.0) / 2.0);
+                    if access::can_relaunch() {
+                        if ui.button("I turned it on: restart ByteBroom").clicked() {
+                            access::relaunch();
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                    } else if ui.button("Quit, then start ByteBroom again").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                    if ui.button("Scan without it").clicked() {
+                        self.needs_access = false;
+                        self.start_scan(ctx);
+                    }
+                });
+            });
+        });
     }
 
     fn start_scan(&mut self, ctx: &egui::Context) {
@@ -639,6 +687,10 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = &ui.ctx().clone();
         let p = palette(ui);
+        if self.needs_access {
+            self.access_ui(ui, ctx);
+            return;
+        }
         if let Some(groups) = self.rx.as_ref().and_then(|rx| rx.try_recv().ok()) {
             self.groups = Some(groups);
             self.rx = None;

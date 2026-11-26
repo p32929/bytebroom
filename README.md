@@ -65,9 +65,9 @@ Or run this in Terminal:
 xattr -dr com.apple.quarantine /Applications/ByteBroom.app
 ```
 
-**Let it see everything:** add ByteBroom under **System Settings → Privacy & Security → Full Disk Access**. Without this, macOS hides some folders and ByteBroom finds less.
+**Let it see everything:** add ByteBroom under **System Settings → Privacy & Security → Full Disk Access**. Without this, macOS hides some folders and ByteBroom finds less. If it is missing, ByteBroom explains this once on launch, before scanning, and opens the right settings pane for you; otherwise macOS would ask folder by folder during the scan.
 
-Releases are built for Apple Silicon Macs. On an Intel Mac, build from source.
+Releases are built for Apple Silicon Macs. On an Intel Mac, build the Intel release yourself (see below) or build from source.
 
 ## Build from source
 
@@ -82,7 +82,7 @@ cd bytebroom
 To install it into `/Applications` as a normal app:
 
 ```sh
-cargo install cargo-bundle      # once
+cargo install cargo-bundle --locked  # once
 ./install.sh
 ```
 
@@ -92,7 +92,7 @@ To remove it again, with its caches, Desktop shortcut, privacy permissions and b
 ./uninstall.sh
 ```
 
-`./release.sh` builds the `.dmg` and `.zip` that go on a GitHub release, into `dist/`.
+`./release.sh` builds the `.dmg` and `.zip` that go on a GitHub release, into `dist/`, for the chip of the Mac you run it on. To build for the other chip, pass it: `./release.sh x86_64` (Intel) or `./release.sh arm64` (Apple Silicon). Cross-building needs the Rust target once: `rustup target add x86_64-apple-darwin` or `rustup target add aarch64-apple-darwin`. Use `cargo install cargo-bundle --locked`; without `--locked` it can fail to compile.
 
 ## Options
 
